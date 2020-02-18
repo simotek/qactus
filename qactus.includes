@@ -1,0 +1,5 @@
+src/gui
+src/gui/browser
+src/gui/monitor
+src/gui/requestbox
+src/qobs
