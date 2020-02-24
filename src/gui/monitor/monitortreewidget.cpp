@@ -59,10 +59,12 @@ void MonitorTreeWidget::readSettings()
         item->setText(0, settings.value("Project").toString());
         item->setText(1, settings.value("Package").toString());
         item->setText(2, settings.value("Repository").toString());
-        item->setText(3, settings.value("Arch").toString());
         insertTopLevelItem(i, item);
     }
     settings.endArray();
+
+    sortByColumn(1, Qt::AscendingOrder);
+    sortByColumn(0, Qt::AscendingOrder);
 }
 
 void MonitorTreeWidget::writeSettings()
@@ -76,13 +78,11 @@ void MonitorTreeWidget::writeSettings()
 //        Save settings only if all the items in a row have text
         if (!topLevelItem(i)->text(0).isEmpty() &&
                 !topLevelItem(i)->text(1).isEmpty() &&
-                !topLevelItem(i)->text(2).isEmpty() &&
-                !topLevelItem(i)->text(3).isEmpty())
+                !topLevelItem(i)->text(2).isEmpty())
         {
             settings.setValue("Project", topLevelItem(i)->text(0));
             settings.setValue("Package", topLevelItem(i)->text(1));
             settings.setValue("Repository", topLevelItem(i)->text(2));
-            settings.setValue("Arch", topLevelItem(i)->text(3));
         }
     }
     settings.endArray();
@@ -102,15 +102,26 @@ void MonitorTreeWidget::getBuildStatus()
 //        Ignore rows with empty cells and process rows with data
         if (!topLevelItem(r)->text(0).isEmpty() ||
                 !topLevelItem(r)->text(1).isEmpty() ||
-                !topLevelItem(r)->text(2).isEmpty() ||
-                !topLevelItem(r)->text(3).isEmpty()) {
+                !topLevelItem(r)->text(2).isEmpty()) {
             QStringList tableStringList;
             tableStringList.append(QString(topLevelItem(r)->text(0)));
             tableStringList.append(QString(topLevelItem(r)->text(2)));
-            tableStringList.append(QString(topLevelItem(r)->text(3)));
+            tableStringList.append(QString("x86_64"));
             tableStringList.append(QString(topLevelItem(r)->text(1)));
 //            Get build status
-            obs->getBuildStatus(tableStringList, r);
+            qDebug("get Build statuses");
+            obs->getDevelBuildStatus(tableStringList, r);
+            obs->getTumbleweedBuildStatus(QString(topLevelItem(r)->text(1)),r);
+            obs->getLeapBuildStatus(QString(topLevelItem(r)->text(1)),r);
+
+            obs->getDevelVersion(tableStringList, r);
+            obs->getTumbleweedVersion(QString(topLevelItem(r)->text(1)),r);
+            obs->getLeapVersion(QString(topLevelItem(r)->text(1)),r);
+
+            QStringList specStringList;
+            specStringList.append(QString(topLevelItem(r)->text(0)));
+            specStringList.append(QString(topLevelItem(r)->text(1)));
+            obs->getUpstreamVersion(specStringList, r);
         }
     }
 }
@@ -185,7 +196,7 @@ void MonitorTreeWidget::finishedAddingPackages()
     }
 }
 
-void MonitorTreeWidget::slotInsertStatus(OBSStatus *obsStatus, int row)
+void MonitorTreeWidget::slotInsertStatus(OBSStatus *obsStatus, int row, int type)
 {
     qDebug() << __PRETTY_FUNCTION__;
     QString details = obsStatus->getDetails();
@@ -201,12 +212,13 @@ void MonitorTreeWidget::slotInsertStatus(OBSStatus *obsStatus, int row)
 
     QTreeWidgetItem *item = topLevelItem(row);
     if (item) {
-        QString oldStatus = item->text(4);
-        item->setText(4, status);
+        int index = 3+2*type;
+        QString oldStatus = item->text(index);
+        item->setText(index, status);
         if (!details.isEmpty()) {
-            item->setToolTip(4, details);
+            item->setToolTip(index, details);
         }
-        item->setForeground(4, Utils::getColorForStatus(status));
+        item->setForeground(index, Utils::getColorForStatus(status));
 
         qDebug() << "Build status" << status << "inserted in" << row
                  << "(Total rows:" << topLevelItemCount() << ")";
@@ -214,6 +226,7 @@ void MonitorTreeWidget::slotInsertStatus(OBSStatus *obsStatus, int row)
         //    If the old status is not empty and it is different from latest one,
         //    change the tray icon and enable the "Mark all as read" button
         if (hasStatusChanged(oldStatus, status)) {
+            //! TODO: This should maybe only do the actual item not the row
             Utils::setItemBoldFont(item, true);
         }
 
@@ -222,6 +235,48 @@ void MonitorTreeWidget::slotInsertStatus(OBSStatus *obsStatus, int row)
         }
     } else {
         emit updateStatusBar(details, true);
+    }
+}
+
+void MonitorTreeWidget::slotInsertVersion(QString version, int row, int type)
+{
+    qDebug() << __PRETTY_FUNCTION__;
+
+    QTreeWidgetItem *item = topLevelItem(row);
+    if (item) {
+        int index = 4+2*type;
+        QString oldStatus = item->text(index);
+        item->setText(index, version);
+
+        qDebug() << "Build version" << version << "inserted in" << row
+                 << "(Total rows:" << topLevelItemCount() << ")";
+
+        //    If the old status is not empty and it is different from latest one,
+        //    change the tray icon and enable the "Mark all as read" button
+        if (hasStatusChanged(oldStatus, version)) {
+            //! TODO: This should maybe only do the actual item not the row
+            Utils::setItemBoldFont(item, true);
+        }
+
+        if (row == topLevelItemCount()-1) {
+            emit updateStatusBar(tr("Done"), true);
+        }
+    }
+}
+
+void MonitorTreeWidget::slotInsertUpstreamVersion(int row, QString version)
+{
+    qDebug() << __PRETTY_FUNCTION__;
+
+    QTreeWidgetItem *item = topLevelItem(row);
+    item->setText(9, version);
+    if (version.contains(item->text(4).mid(0, item->text(4).indexOf('-')-1)))
+    {
+        item->setForeground(9, QColor(110, 185, 39));
+    }
+    else
+    {
+        item->setForeground(9, QColor(255, 0, 0));
     }
 }
 

@@ -56,7 +56,9 @@ signals:
 public slots:
     void addDroppedPackage(OBSResult *result);
     void finishedAddingPackages();
-    void slotInsertStatus(OBSStatus *obsStatus, int row);
+    void slotInsertStatus(OBSStatus *obsStatus, int row, int type);
+    void slotInsertVersion(QString version, int row, int type);
+    void slotInsertUpstreamVersion(int row, QString version);
     void slotAddRow();
     void slotRemoveRow();
     void slotMarkAllRead();

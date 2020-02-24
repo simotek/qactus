@@ -48,10 +48,12 @@ public:
     static OBSXmlReader *getInstance();
     void addData(const QString &data);
     void setPackageRow(int row);
+    void setPackageType(int type);
     void parseProjectList(const QString &userHome, const QString &data);
     void parsePrjMetaConfig(const QString &data);
     void parsePkgMetaConfig(const QString &data);
     void parseBuildStatus(const QString &data);
+    void parseBuildVersion(const QString &data);
     OBSStatus *parseNotFoundStatus(const QString &data);
     void parsePackageList(const QString &data);
     void parseFileList(const QString &project, const QString &package, const QString &data);
@@ -82,7 +84,10 @@ private:
     static OBSXmlReader *instance;
     OBSXmlReader();
     void parseStatus(QXmlStreamReader &xml, OBSStatus *obsStatus);
+    QString parseVersion(QXmlStreamReader &xml);
     int row;
+    //! Todo: This should be an enum 0 devel, 1 tumbleweed, 2 leap
+    int type;
     void parseRevision(QXmlStreamReader &xml, OBSRevision *obsRevision);
     void parseRevisionList(const QString &data);
     QList<QString> requestIdList;
@@ -96,7 +101,8 @@ private:
     QString requestNumber;
 
 signals:
-    void finishedParsingPackage(OBSStatus*, int);
+    void finishedParsingPackage(OBSStatus*, int, int);
+    void finishedParsingVersion(QString, int, int);
     void finishedParsingBranchPackage(OBSStatus*);
     void finishedParsingLinkPkgRevision(OBSRevision *revision);
     void finishedParsingCopyPkgRevision(OBSRevision *revision);

@@ -30,12 +30,16 @@ OBS::OBS(QObject *parent) : QObject(parent)
     connect(obsCore, SIGNAL(apiNotFound(QUrl)), this, SIGNAL(apiNotFound(QUrl)));
     connect(obsCore, SIGNAL(isAuthenticated(bool)),
             this, SIGNAL(isAuthenticated(bool)));
+    connect(obsCore, SIGNAL(upstreamVersionFound(int, QString)),
+            this, SIGNAL(upstreamVersionFound(int,QString)));
     connect(obsCore, SIGNAL(selfSignedCertificate(QNetworkReply*)),
             this, SIGNAL(selfSignedCertificate(QNetworkReply*)));
     connect(obsCore, SIGNAL(networkError(QString)),
             this, SIGNAL(networkError(QString)));
-    connect(xmlReader, SIGNAL(finishedParsingPackage(OBSStatus*,int)),
-            this, SIGNAL(finishedParsingPackage(OBSStatus*,int)));
+    connect(xmlReader, SIGNAL(finishedParsingPackage(OBSStatus*,int, int)),
+            this, SIGNAL(finishedParsingPackage(OBSStatus*,int, int)));
+    connect(xmlReader, SIGNAL(finishedParsingVersion(QString,int, int)),
+            this, SIGNAL(finishedParsingVersion(QString,int, int)));
 
     connect(xmlReader, SIGNAL(finishedParsingBranchPackage(OBSStatus*)),
             this, SIGNAL(finishedParsingBranchPackage(OBSStatus*)));
@@ -169,10 +173,78 @@ void OBS::login()
     obsCore->login();
 }
 
-void OBS::getBuildStatus(const QStringList &stringList, int row)
+void OBS::getDevelBuildStatus(const QStringList &stringList, int row)
 {
     //    URL format: https://api.opensuse.org/build/<project>/<repository>/<arch>/<package>/_status
-    obsCore->getBuildStatus(stringList, row);
+    obsCore->getBuildStatus(stringList, row, 0);
+}
+
+void OBS::getTumbleweedBuildStatus(const QString &package, int row)
+{
+    QStringList stringList;
+
+    //! Todo: define these better - especially Leap 15.2
+    stringList.append("openSUSE:Factory");
+    stringList.append("standard");
+    stringList.append("x86_64");
+    stringList.append(package);
+
+    //    URL format: https://api.opensuse.org/build/<project>/<repository>/<arch>/<package>/_status
+    obsCore->getBuildStatus(stringList, row, 1);
+}
+
+void OBS::getLeapBuildStatus(const QString &package, int row)
+{
+    QStringList stringList;
+
+    //! Todo: define these better
+    stringList.append("openSUSE:Leap:15.2");
+    stringList.append("standard");
+    stringList.append("x86_64");
+    stringList.append(package);
+
+    //    URL format: https://api.opensuse.org/build/<project>/<repository>/<arch>/<package>/_status
+    obsCore->getBuildStatus(stringList, row, 2);
+}
+
+void OBS::getDevelVersion(const QStringList &stringList, int row)
+{
+    //    URL format: https://api.opensuse.org/build/<project>/<repository>/<arch>/<package>/_history
+    obsCore->getVersion(stringList, row, 0);
+}
+
+void OBS::getTumbleweedVersion(const QString &package, int row)
+{
+    QStringList stringList;
+
+    //! Todo: define these better - especially Leap 15.2
+    stringList.append("openSUSE:Factory");
+    stringList.append("standard");
+    stringList.append("x86_64");
+    stringList.append(package);
+
+    //    URL format: https://api.opensuse.org/build/<project>/<repository>/<arch>/<package>/_history
+    obsCore->getVersion(stringList, row, 1);
+}
+
+void OBS::getLeapVersion(const QString &package, int row)
+{
+    QStringList stringList;
+
+    //! Todo: define these better
+    stringList.append("openSUSE:Leap:15.2");
+    stringList.append("standard");
+    stringList.append("x86_64");
+    stringList.append(package);
+
+    //    URL format: https://api.opensuse.org/build/<project>/<repository>/<arch>/<package>/_history
+    obsCore->getVersion(stringList, row, 2);
+}
+
+void OBS::getUpstreamVersion(const QStringList &stringList, int row)
+{
+    //    URL format: https://api.opensuse.org/source/<project>/<package>/<filename>
+    obsCore->getUpstreamVersion(stringList, row);
 }
 
 void OBS::getAllBuildStatus(const QString &project, const QString &package)

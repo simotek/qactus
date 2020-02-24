@@ -46,7 +46,13 @@ public:
     void request(QNetworkReply *reply);
     bool isAuthenticated();
     void login();
-    void getBuildStatus(const QStringList &stringList, int row);
+    void getDevelBuildStatus(const QStringList &stringList, int row);
+    void getTumbleweedBuildStatus(const QString &package, int row);
+    void getLeapBuildStatus(const QString &package, int row);
+    void getDevelVersion(const QStringList &stringList, int row);
+    void getTumbleweedVersion(const QString &package, int row);
+    void getLeapVersion(const QString &package, int row);
+    void getUpstreamVersion(const QStringList &stringList, int row);
     void getRevisions(const QString &project, const QString &package);
     void getIncomingRequests();
     void getOutgoingRequests();
@@ -88,7 +94,8 @@ signals:
     void isAuthenticated(bool);
     void selfSignedCertificate(QNetworkReply*);
     void networkError(const QString&);
-    void finishedParsingPackage(OBSStatus*, int);
+    void finishedParsingPackage(OBSStatus*, int, int);
+    void finishedParsingVersion(QString, int, int);
     void finishedParsingBranchPackage(OBSStatus*);
     void finishedParsingLinkPkgRevision(OBSRevision *revision);
     void finishedParsingCopyPkgRevision(OBSRevision *revision);
@@ -137,6 +144,7 @@ signals:
     void finishedParsingPerson(OBSPerson *obsPerson);
     void finishedParsingUpdatePerson(OBSStatus *obsStatus);
     void finishedParsingDistribution(OBSDistribution *distribution);
+    void upstreamVersionFound(int row, QString Version);
 
 public slots:
     void getAllBuildStatus(const QString &project, const QString &package);

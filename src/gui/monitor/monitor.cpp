@@ -30,11 +30,12 @@ Monitor::Monitor(QWidget *parent, OBS *obs) :
 
 
     connect(m_obs, &OBS::finishedParsingPackage, ui->treeMonitor, &MonitorTreeWidget::slotInsertStatus);
+    connect(m_obs, &OBS::finishedParsingVersion, ui->treeMonitor, &MonitorTreeWidget::slotInsertVersion);
     connect(ui->treeMonitor, &MonitorTreeWidget::obsUrlDropped, m_obs, &OBS::getAllBuildStatus);
     connect(m_obs, &OBS::finishedParsingResult, this, &Monitor::addDroppedPackage);
     connect(this, &Monitor::addDroppedPackage, ui->treeMonitor, &MonitorTreeWidget::addDroppedPackage);
     connect(m_obs, &OBS::finishedParsingResultList, ui->treeMonitor, &MonitorTreeWidget::finishedAddingPackages);
-
+    connect(m_obs, &OBS::upstreamVersionFound,  ui->treeMonitor, &MonitorTreeWidget::slotInsertUpstreamVersion);
     connect(this, &Monitor::addRow, ui->treeMonitor, &MonitorTreeWidget::slotAddRow);
     connect(ui->treeMonitor, &MonitorTreeWidget::itemSelectionChanged, this, &Monitor::itemSelectionChanged);
     connect(this, &Monitor::removeRow, ui->treeMonitor, &MonitorTreeWidget::slotRemoveRow);

@@ -22,6 +22,8 @@
 #include "obscore.h"
 #include "obsstatus.h"
 
+#include <QProcess>
+
 OBSCore *OBSCore::instance = nullptr;
 const QString userAgent = APP_NAME + QString(" ") + QACTUS_VERSION;
 
@@ -130,13 +132,39 @@ QNetworkReply *OBSCore::requestBuild(const QString &resource)
     return request("/build/" + resource);
 }
 
-void OBSCore::getBuildStatus(const QStringList &build, int row)
+void OBSCore::getBuildStatus(const QStringList &build, int row, int type)
 {
     QString resource = QString("%1/%2/%3/%4/_status").arg(build[0], build[1], build[2], build[3]);
     QNetworkReply *reply = requestBuild(resource);
     reply->setProperty("reqtype", OBSCore::BuildStatus);
     reply->setProperty("row", row);
+    reply->setProperty("type", type);
+
+    qDebug("Get Build status %d %d", row, type);
 }
+
+void OBSCore::getVersion(const QStringList &build, int row, int type)
+{
+    QString resource = QString("%1/%2/%3/%4/_history").arg(build[0], build[1], build[2], build[3]);
+    QNetworkReply *reply = requestBuild(resource);
+    reply->setProperty("reqtype", OBSCore::BuildVersion);
+    reply->setProperty("row", row);
+    reply->setProperty("type", type);
+
+    qDebug("Get Version %d %d", row, type);
+}
+
+void OBSCore::getUpstreamVersion(const QStringList &build, int row)
+{
+    QString resource = QString("/%1/%2/%2.spec").arg(build[0], build[1]);
+    QNetworkReply *reply = requestSource(resource);
+    reply->setProperty("reqtype", OBSCore::UpstreamVersion);
+    reply->setProperty("row", row);
+    reply->setProperty("name", build[1]);
+
+    qDebug() << "Get Upstream Version" << row << resource;
+}
+
 
 QNetworkReply *OBSCore::requestSource(const QString &resource)
 {
@@ -354,6 +382,11 @@ void OBSCore::replyFinished(QNetworkReply *reply)
         int row = reply->property("row").toInt();
         qDebug() << "Reply row property:" << QString::number(row);
         xmlReader->setPackageRow(row);
+    }
+    if(reply->property("type").isValid()) {
+        int type = reply->property("type").toInt();
+        xmlReader->setPackageType(type);
+        qDebug() << "Reply type property:" << QString::number(type);
     }
 
     QString reqTypeStr = "RequestType";
@@ -626,6 +659,63 @@ void OBSCore::replyFinished(QNetworkReply *reply)
                 qDebug() << reqTypeStr << "Distributions";
                 xmlReader->parseDistributions(dataStr);
                 break;
+
+            case OBSCore::BuildVersion: // <status>
+                qDebug() << reqTypeStr << "BuildStatus";
+                xmlReader->parseBuildVersion(dataStr);
+                break;
+
+            case OBSCore::UpstreamVersion: // <status>
+                qDebug() << reqTypeStr << "### Upstream Version Return";
+                QStringList spec = dataStr.split('\n');
+
+                Q_FOREACH(QString s, spec)
+                {
+                    if (s.startsWith("Source:",Qt::CaseInsensitive) ||
+                        s.startsWith("Source0:",Qt::CaseInsensitive))
+                    {
+                        QString tmp = s.remove("Source:",Qt::CaseInsensitive);
+                        tmp = tmp.remove("Source0:",Qt::CaseInsensitive);
+                        tmp = tmp.trimmed();
+
+                        QString url = tmp.mid(0, tmp.lastIndexOf('/'));
+                        // Only search after the last / for the extention turns out url's have .'s
+                        QString wgetExt = tmp.mid(tmp.indexOf('.', tmp.lastIndexOf('/')));
+
+                        // url might contain an rpm macro
+                        if (url.contains('{'))
+                        {
+                            // Strip everything after the macro then strip back to previous directory
+                            url = url.mid(0, url.lastIndexOf('}'));
+                            url = url.mid(0,url.lastIndexOf('/'));
+                        }
+
+                        // if url begins with https
+                        if (url.startsWith("http://") || url.startsWith("https://"))
+                        {
+                            //! Todo: lazy me should put this in another function.
+                            //! Also maybe add memory management
+                            QProcess * wgetProcess = new QProcess();
+
+                            wgetProcess->setProperty("row", reply->property("row"));
+                            wgetProcess->setProperty("name", reply->property("name"));
+                            wgetProcess->setProperty("ext", wgetExt);
+
+                            QStringList argList;
+                            argList.append("--spider"); //Don't download
+                            argList.append("-r");       // Recursive
+                            argList.append("-nv");      // Non Verbose
+                            argList.append("-np");      // no parent
+                            argList.append(url);
+
+                            connect(wgetProcess, SIGNAL(finished(int, QProcess::ExitStatus)), this, SLOT(upstreamVersionSearchFinished(int, QProcess::ExitStatus)));
+                            wgetProcess->start("wget", argList);
+
+                        }
+                    }
+                }
+                break;
+
             }
             return;
         }
@@ -1069,4 +1159,48 @@ void OBSCore::onSslErrors(QNetworkReply *reply, const QList<QSslError> &list)
     }
 
    qDebug() << "OBSCore::onSslErrors() url:" << reply->url() << "row:" << reply->property("row").toInt();
+}
+
+void OBSCore::upstreamVersionSearchFinished(int exitCode, QProcess::ExitStatus exitStatus)
+{
+    qDebug() << "Upstream Version Search Finshed";
+
+    QProcess* process = qobject_cast<QProcess*>(sender());
+    QStringList data = QString(process->readAllStandardError()).split("URL:");
+
+    QString wgetExt = process->property("ext").toString();
+    QString name = process->property("name").toString();
+
+    QStringList Versions;
+    Q_FOREACH(QString s, data)
+    {
+        if (s.contains(wgetExt+' '))
+        {
+            QString tmp = s.mid(s.lastIndexOf('/')+1, s.lastIndexOf(wgetExt)-s.lastIndexOf('/')-1);
+            if (tmp.contains(name))
+            {
+                Versions.append(tmp);
+            }
+        }
+    }
+
+    // If we find no versions, try again without the name check
+    if (Versions.isEmpty())
+    {
+        Q_FOREACH(QString s, data)
+        {
+            if (s.contains(wgetExt+' '))
+            {
+                QString tmp = s.mid(s.lastIndexOf('/')+1, s.lastIndexOf(wgetExt)-s.lastIndexOf('/')-1);
+                Versions.append(tmp);
+            }
+        }
+    }
+    Versions.sort();
+
+    if (!Versions.isEmpty())
+    {
+        qDebug() << "Latest Upstream Version" << name << ":" << Versions.last();
+        emit upstreamVersionFound(process->property("row").toInt(), Versions.last());
+    }
 }

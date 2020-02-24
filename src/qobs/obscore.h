@@ -30,6 +30,7 @@
 #include <QSslError>
 #include <QDebug>
 #include <QEventLoop>
+#include <QProcess>
 #include "obsxmlreader.h"
 #include "obslinkhelper.h"
 
@@ -47,7 +48,9 @@ public:
     QNetworkReply *request(const QString &resource);
     void request(QNetworkReply *reply);
     QNetworkReply *requestBuild(const QString &resource);
-    void getBuildStatus(const QStringList &build, int row);
+    void getBuildStatus(const QStringList &build, int row, int type);
+    void getVersion(const QStringList &build, int row, int type);
+    void getUpstreamVersion(const QStringList &build, int row);
     QNetworkReply *requestSource(const QString &resource);
     void getIncomingRequests();
     void getOutgoingRequests();
@@ -88,6 +91,7 @@ public:
 signals:
     void apiNotFound(QUrl url);
     void isAuthenticated(bool authenticated);
+    void upstreamVersionFound(int row, QString Version);
     void selfSignedCertificate(QNetworkReply *reply);
     void networkError(const QString &error);
     void srDiffFetched(const QString &diff);
@@ -113,6 +117,7 @@ private slots:
     void provideAuthentication(QNetworkReply *reply, QAuthenticator* ator);
     void replyFinished(QNetworkReply *reply);
     void onSslErrors(QNetworkReply *reply, const QList<QSslError> &list);
+    void upstreamVersionSearchFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
 private:
 /*
@@ -161,7 +166,9 @@ private:
         About,
         Person,
         UpdatePerson,
-        Distributions
+        Distributions,
+        BuildVersion,
+        UpstreamVersion
     };
     bool authenticated;
     OBSXmlReader *xmlReader;

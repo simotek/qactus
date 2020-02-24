@@ -187,7 +187,7 @@ void OBSXmlReader::parsePackageList(const QString &data)
 
 void OBSXmlReader::parseStatus(QXmlStreamReader &xml, OBSStatus *obsStatus)
 {
-    qDebug() << "OBSXmlReader::parseStatus()";
+    //! qDebug() << "OBSXmlReader::parseStatus()";
 
     if (xml.name()=="status") {
         if (xml.isStartElement()) {
@@ -233,7 +233,43 @@ void OBSXmlReader::parseBuildStatus(const QString &data)
         qDebug() << "Error parsing XML!" << xml.errorString();
         return;
     }
-    emit finishedParsingPackage(obsStatus, row);
+    qDebug("Finished parsing %d %d", row, type);
+    emit finishedParsingPackage(obsStatus, row, type);
+}
+
+QString OBSXmlReader::parseVersion(QXmlStreamReader &xml)
+{
+    if (xml.name()=="entry") {
+        if (xml.isStartElement()) {
+            QXmlStreamAttributes attrib = xml.attributes();
+            if (attrib.hasAttribute("versrel")) {
+                return attrib.value("versrel").toString();
+            }
+        }
+    } // end entry
+    return QString("");
+}
+
+void OBSXmlReader::parseBuildVersion(const QString &data)
+{
+    QXmlStreamReader xml(data);
+    QString version;
+
+    while (!xml.atEnd() && !xml.hasError()) {
+        xml.readNext();
+        QString temp_version = parseVersion(xml);
+        if (temp_version != QString(""))
+        {
+            version = temp_version;
+        }
+    } // end while
+
+    if (xml.hasError()) {
+        qDebug() << "Error parsing XML!" << xml.errorString();
+        return;
+    }
+    qDebug("Finished parsing %d %d", row, type);
+    emit finishedParsingVersion(version, row, type);
 }
 
 OBSStatus *OBSXmlReader::parseNotFoundStatus(const QString &data)
@@ -255,6 +291,11 @@ OBSStatus *OBSXmlReader::parseNotFoundStatus(const QString &data)
 void OBSXmlReader::setPackageRow(int row)
 {
     this->row = row;
+}
+
+void OBSXmlReader::setPackageType(int type)
+{
+    this->type = type;
 }
 
 void OBSXmlReader::parseResultList(const QString &data)

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>384</width>
-    <height>169</height>
+    <height>176</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -141,11 +141,17 @@
      </item>
      <item>
       <widget class="QLineEdit" name="lineEditArch">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="maximumSize">
         <size>
          <width>75</width>
          <height>16777215</height>
         </size>
+       </property>
+       <property name="placeholderText">
+        <string>Not in Use</string>
        </property>
       </widget>
      </item>
