@@ -156,7 +156,7 @@ void OBSCore::getVersion(const QStringList &build, int row, int type)
 
 void OBSCore::getUpstreamVersion(const QStringList &build, int row)
 {
-    QString resource = QString("/%1/%2/%2.spec").arg(build[0], build[1]);
+    QString resource = QString("/%1/%2/%2.spec?expand=1").arg(build[0], build[1]);
     QNetworkReply *reply = requestSource(resource);
     reply->setProperty("reqtype", OBSCore::UpstreamVersion);
     reply->setProperty("row", row);
